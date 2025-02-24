@@ -63,12 +63,18 @@ def save_gff3(hap_list, out_gff3_file):
     with open(out_gff3_file, 'w') as fout:
         for idx in range(len(hap_list)):
             for gid in hap_list[idx]:
-                for _, _, _, _, data in hap_list[idx][gid]:
-                    if data[2] == 'gene':
+                for _, _, _, record_type, data in hap_list[idx][gid]:
+                    if record_type == 'gene':
                         gene_id = data[8].split(";")[0].split("=")[-1]
                         new_gene_id = "%s%s" % (gene_id, chr(ord("A") + idx))
+                        idx_db = {}
+                    else:
+                        if record_type not in idx_db:
+                            idx_db[record_type] = 1
+                        new_gene_id = "%s%s-%s%d" % (gene_id, chr(ord("A") + idx), record_type, idx_db[record_type])
+                        idx_db[record_type] += 1
                     data[0] = "%s%s" % (data[0], chr(ord("A") + idx))
-                    data[8] = "ID=%s;Name=%s"%(new_gene_id, new_gene_id)
+                    data[8] = "ID=%s;Name=%s" % (new_gene_id, new_gene_id)
                     fout.write("%s\n" % ("\t".join(data)))
 
 
