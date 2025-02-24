@@ -66,9 +66,9 @@ def save_gff3(hap_list, out_gff3_file):
                 for _, _, _, _, data in hap_list[idx][gid]:
                     if data[2] == 'gene':
                         gene_id = data[8].split(";")[0].split("=")[-1]
+                        new_gene_id = "%s-%s" % (gene_id, chr(ord("A") + idx))
                     data[0] = "%s%s" % (data[0], chr(ord("A") + idx))
-                    new_gene_id = "%s-%s" % (gene_id, chr(ord("A") + idx))
-                    data[8] = data[8].replace(gene_id, new_gene_id)
+                    data[8] = "ID=%s;Name=%s"%(new_gene_id, new_gene_id)
                     fout.write("%s\n" % ("\t".join(data)))
 
 
