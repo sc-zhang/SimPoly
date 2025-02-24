@@ -1,4 +1,8 @@
 import argparse
+from sim_poly.utils.simulator import simulate
+from sim_poly.utils.io import *
+from sim_poly.utils.utils import time_print
+import os
 
 
 def get_opts():
@@ -7,48 +11,10 @@ def get_opts():
         "-g", "--genome", help="input genome file, gz supported", required=True
     )
     group.add_argument(
-        "-a", "--annotation", help="input annotation file, gz supported", required=True
+        "-f", "--gff3", help="input gff3 file, gz supported", required=True
     )
-    group.add_argument(
-        "-s",
-        "--snp",
-        type=float,
-        help="snp ratio of whole genome, percentage, default: 0.01",
-        default=0.01,
-    )
-    group.add_argument(
-        "-i",
-        "--insertion",
-        type=float,
-        help="insertion ratio of whole genome, percentage, default: 0.01",
-        default=0.01,
-    )
-    group.add_argument(
-        "--insert_length",
-        type=int,
-        help="max length of insertion, default: 10",
-        default=10,
-    )
-    group.add_argument(
-        "-d",
-        "--deletion",
-        type=float,
-        help="deletion ratio of whole genome, percentage, default: 0.01",
-        default=0.01,
-    )
-    group.add_argument(
-        "--delete_length",
-        type=int,
-        help="max length of deletion, default: 10",
-        default=10,
-    )
-    group.add_argument(
-        "--random_length",
-        action="store_true",
-        help="use this argument for generate random length of indels",
-        default=False,
-    )
-    group.add_argument("-o", "--out", help="output prefix", required=True)
+    group.add_argument("-c", "--config", help="input config file", required=True)
+    group.add_argument("-o", "--out", help="output directory", required=True)
 
     return group.parse_args()
 
@@ -56,10 +22,53 @@ def get_opts():
 def main():
     opts = get_opts()
     ref_genome = opts.genome
-    gff3_file = opts.annotation
-    snp_ratio = opts.snp
-    ins_ratio = opts.insertion
-    del_ratio = opts.deletion
-    ins_len = opts.insert_length
-    del_len = opts.delete_length
-    random_length = opts.random_length
+    ref_gff3 = opts.gff3
+    conf = opts.config
+    out_dir = opts.out
+    params = load_conf(conf)
+
+    if not os.path.exists(out_dir):
+        os.makedirs(out_dir)
+
+    time_print("Loading reference")
+    ref_fa_db = load_fasta(ref_genome)
+    ref_gff3_db = load_gff3_keep_primary(ref_gff3)
+
+    time_print("Simulating")
+    hap_genome_list = [{} for _ in range(params.ploidy)]
+    hap_gff3_list = [{} for _ in range(params.ploidy)]
+    sim_cnt = 0
+    for idx in range(params.ploidy):
+        if params.structure[idx] == 0:
+            hap_genome_list[idx], hap_gff3_list[idx] = simulate(out_dir, idx + 1, ref_fa_db, ref_gff3_db,
+                                                                params.snp[idx],
+                                                                params.insertion[idx],
+                                                                params.deletion[idx],
+                                                                params.insertion_length[idx],
+                                                                params.deletion_length[idx])
+            sim_cnt += 1
+
+    while sim_cnt < params.ploidy:
+        add_cnt = 0
+        for idx in range(params.ploidy):
+            if params.structure[idx] == 0:
+                continue
+            if hap_genome_list[params.structure[idx] - 1]:
+                hap_genome_list[idx], hap_gff3_list[idx] = simulate(out_dir, idx + 1,
+                                                                    hap_genome_list[params.structure[idx] - 1],
+                                                                    hap_gff3_list[params.structure[idx] - 1],
+                                                                    params.snp[idx],
+                                                                    params.insertion[idx],
+                                                                    params.deletion[idx],
+                                                                    params.insertion_length[idx],
+                                                                    params.deletion_length[idx])
+                sim_cnt += 1
+                add_cnt += 1
+        if add_cnt == 0:
+            raise "Structure error!"
+
+    time_print("Saving")
+    save_fasta(hap_genome_list, os.path.join(out_dir, "sim.fasta"))
+    save_gff3(hap_gff3_list, os.path.join(out_dir, "sim.gff3"))
+
+    time_print("Done")
