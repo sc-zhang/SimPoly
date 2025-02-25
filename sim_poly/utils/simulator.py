@@ -7,6 +7,7 @@ def simulate(out_dir, hap_idx, ref_fa_db, ref_gff3_db, snp_ratio, ins_ratio, del
     np.random.seed()
     new_fa_db = {}
     new_gff3_db = {}
+    new_cds_db = {}
 
     tmp_gff3_db = {}
     snp_db = {}
@@ -20,8 +21,8 @@ def simulate(out_dir, hap_idx, ref_fa_db, ref_gff3_db, snp_ratio, ins_ratio, del
         ins_db[gid] = []
         del_db[gid] = []
         seq_len = len(ref_fa_db[gid])
+        time_print("\tReference length: %d" % seq_len)
         pos_list = [1 for _ in range(seq_len)]
-
         snp_cnt = int(seq_len * snp_ratio)
         time_print("\tSimulating SNP: %d" % snp_cnt)
         while len(snp_db[gid]) < snp_cnt:
@@ -133,6 +134,7 @@ def simulate(out_dir, hap_idx, ref_fa_db, ref_gff3_db, snp_ratio, ins_ratio, del
                 seq = ''.join(seq_list)
             if check_cds(seq):
                 retain_genes.add(gene_id)
+                new_cds_db[gene_id] = seq
 
     time_print("\tTotal: %d, Valid: %d" % (gene_cnt, len(retain_genes)))
 
@@ -163,4 +165,4 @@ def simulate(out_dir, hap_idx, ref_fa_db, ref_gff3_db, snp_ratio, ins_ratio, del
             for pos, del_len in del_db[gid]:
                 fout.write("%s\t%d\t%d\t%s\n" % (gid, pos, del_len, ref_fa_db[gid][pos: pos + del_len]))
 
-    return new_fa_db, new_gff3_db
+    return new_fa_db, new_gff3_db, new_cds_db
