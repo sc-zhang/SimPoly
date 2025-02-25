@@ -28,6 +28,7 @@ def gen_seq(frag_len):
 
 
 def gen_snp(ori_base):
+    np.random.seed()
     base = list("ATGC")
     np.random.shuffle(base)
     for _ in base:

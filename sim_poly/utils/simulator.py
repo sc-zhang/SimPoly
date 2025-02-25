@@ -1,15 +1,14 @@
 import copy
 import os
-import numpy as np
 from sim_poly.utils.utils import *
 
 
 def simulate(out_dir, hap_idx, ref_fa_db, ref_gff3_db, snp_ratio, ins_ratio, del_ratio, max_ins_len, max_del_len):
+    np.random.seed()
     new_fa_db = {}
     new_gff3_db = {}
 
     tmp_gff3_db = {}
-
     snp_db = {}
     ins_db = {}
     del_db = {}
