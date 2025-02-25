@@ -49,10 +49,10 @@ options:
 
 - Details of config file (example config file could be found at root directory of this tool)
 
-> 1. ploidy is the target ploidy need simulate, for each haplotype, the ratio of SNP,insertion,deletion shoud be set
-     > seperated by comma.
-> 2. the max length of insertion/deletion fragments are use to generate insert fragments which length
-     > are in range of [1, max_length_of_insertion], and delete regions in range of [1, max_length_of_deletion]
+> 1. ploidy is the target ploidy need simulate, for each hap, the ratio of SNP,insertion,deletion should be set
+     seperated by comma.
+> 2. the max length of insertion/deletion fragments are use to generate insert fragments which length are in range
+     of [1, max_length_of_insertion], and delete regions in range of [1, max_length_of_deletion]
 > 3. the structure is used to define how to simulate haplotypes
 > ```text
 > [parameters]
