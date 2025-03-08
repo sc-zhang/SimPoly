@@ -12,7 +12,7 @@ def get_opts():
         "-g", "--genome", help="input genome file, gz supported", required=True
     )
     group.add_argument(
-        "-f", "--gff3", help="input gff3 file, gz supported", required=True
+        "-f", "--gff3", help="input gff3 file, gz supported"
     )
     group.add_argument("-c", "--config", help="input config file", required=True)
     group.add_argument("-o", "--out", help="output directory", required=True)
@@ -34,7 +34,7 @@ def main():
 
     time_print("Loading reference")
     ref_fa_db = load_fasta(ref_genome)
-    ref_gff3_db = load_gff3_keep_primary(ref_gff3)
+    ref_gff3_db = load_gff3_keep_primary(ref_gff3) if ref_gff3 else {}
 
     time_print("Simulating")
     hap_genome_list = [{} for _ in range(params.ploidy)]
@@ -75,8 +75,9 @@ def main():
 
     time_print("Saving")
     save_fasta(hap_genome_list, os.path.join(out_dir, "sim.fasta"))
-    save_gff3(hap_gff3_list, os.path.join(out_dir, "sim.gff3"))
-    save_fasta(hap_cds_list, os.path.join(out_dir, "sim.cds"))
+    if ref_gff3:
+        save_gff3(hap_gff3_list, os.path.join(out_dir, "sim.gff3"))
+        save_fasta(hap_cds_list, os.path.join(out_dir, "sim.cds"))
     et = time.time()
 
     time_print("Total cost: %ds" % (et - st))

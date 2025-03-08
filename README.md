@@ -35,7 +35,7 @@ sim_poly.py -g genome.fa -f genome.gff3 -c config.conf -o sim
 - Details
 
 ```bash
-usage: sim_poly.py [-h] -g GENOME -f GFF3 -c CONFIG -o OUT
+usage: sim_poly.py [-h] -g GENOME [-f GFF3] -c CONFIG -o OUT
 
 options:
   -h, --help            show this help message and exit
@@ -80,4 +80,4 @@ options:
 
 1. snp*.txt, ins*.txt, del*.txt record the detail information of all variants.
 2. sim.fasta is the final genome file.
-3. sim.gff3 is the final annotation file.
+3. sim.gff3 and sim.cds is the final annotation file and CDS file (only generated if gff3 file input).
