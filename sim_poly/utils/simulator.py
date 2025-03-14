@@ -3,6 +3,15 @@ import os
 from sim_poly.utils.utils import *
 
 
+def get_cds_seq(cds_list):
+    if cds_list[0][2] == '+':
+        seq_list = [_[3] for _ in sorted(cds_list)]
+    else:
+        seq_list = [_[3] for _ in sorted(cds_list, reverse=True)]
+    seq = ''.join(seq_list)
+    return seq
+
+
 def simulate(out_dir, hap_idx, ref_fa_db, ref_gff3_db, snp_ratio, ins_ratio, del_ratio, max_ins_len, max_del_len):
     np.random.seed()
     new_fa_db = {}
@@ -74,6 +83,8 @@ def simulate(out_dir, hap_idx, ref_fa_db, ref_gff3_db, snp_ratio, ins_ratio, del
         snp_db[gid] = sorted(snp_db[gid])
         ins_db[gid] = sorted(ins_db[gid])
         del_db[gid] = sorted(del_db[gid])
+
+    keep_rec = {"gene", "mrna", "cds"}
     if ref_gff3_db:
         time_print("\tAdjusting gff3")
         for gid in ref_gff3_db:
@@ -83,6 +94,8 @@ def simulate(out_dir, hap_idx, ref_fa_db, ref_gff3_db, snp_ratio, ins_ratio, del
             del_idx = 0
             del_offset = 0
             for sp, ep, record_type, gene_id, data in ref_gff3_db[gid]:
+                if record_type.lower() not in keep_rec:
+                    continue
                 while ins_idx < len(ins_db[gid]) and sp >= ins_db[gid][ins_idx][0] + 1:
                     ins_offset += ins_db[gid][ins_idx][1]
                     ins_idx += 1
@@ -114,7 +127,8 @@ def simulate(out_dir, hap_idx, ref_fa_db, ref_gff3_db, snp_ratio, ins_ratio, del
         gene_cnt = 0
         for gid in tmp_gff3_db:
             cds_db = {}
-            for gene_id, sp, ep, record_type, data in tmp_gff3_db[gid]:
+            for rec_idx in range(len(tmp_gff3_db[gid])):
+                gene_id, sp, ep, record_type, data = tmp_gff3_db[gid][rec_idx]
                 if gene_id not in cds_db:
                     cds_db[gene_id] = []
                     gene_cnt += 1
@@ -122,25 +136,105 @@ def simulate(out_dir, hap_idx, ref_fa_db, ref_gff3_db, snp_ratio, ins_ratio, del
                     seq = new_fa_db[gid][sp - 1: ep]
                     if data[6] == '-':
                         seq = rev_seq(seq)
-                    cds_db[gene_id].append([sp, ep, data[6], seq])
+                    cds_db[gene_id].append([sp, ep, data[6], seq, rec_idx])
 
             for gene_id in cds_db:
-                seq = ""
+                cds_db[gene_id] = sorted(cds_db[gene_id])
+
+            for gene_id in cds_db:
                 if cds_db[gene_id]:
-                    if cds_db[gene_id][0][2] == '+':
-                        seq_list = [_[3] for _ in sorted(cds_db[gene_id])]
-                    else:
-                        seq_list = [_[3] for _ in sorted(cds_db[gene_id], reverse=True)]
-                    seq = ''.join(seq_list)
-                if check_cds(seq):
+                    seq = get_cds_seq(cds_db[gene_id])
+                else:
+                    continue
+                cds_stat, val = check_cds(seq)
+                if cds_stat == CDS_Status.MISSING_START or cds_stat == CDS_Status.MISSING_STOP:
+                    continue
+                if cds_stat == CDS_Status.VALID_CDS:
                     retain_genes.add(gene_id)
                     new_cds_db[gene_id] = seq
+                    continue
+
+                if cds_stat == CDS_Status.NOT_MULTIPLE_3:
+                    is_mod = False
+                    for cds_idx in range(1, len(cds_db[gene_id]) - 1):
+                        if cds_db[gene_id][cds_idx][2] == '+':
+                            if cds_db[gene_id][cds_idx][1] + val <= cds_db[gene_id][cds_idx + 1][0]:
+                                cds_db[gene_id][cds_idx][1] -= val
+                                cds_db[gene_id][cds_idx][3] = cds_db[gene_id][cds_idx][3][:-val]
+                                is_mod = True
+                        else:
+                            if cds_db[gene_id][cds_idx][0] - val >= 0 and cds_db[gene_id][cds_idx][0] - val >= \
+                                    cds_db[gene_id][cds_idx - 1][1]:
+                                cds_db[gene_id][cds_idx][0] += val
+                                cds_db[gene_id][cds_idx][3] = cds_db[gene_id][cds_idx][3][val:]
+                                is_mod = True
+                        if is_mod:
+                            tmp_gff3_db[gid][cds_db[gene_id][cds_idx][4]][1] = cds_db[gene_id][cds_idx][1]
+
+                            break
+                    if is_mod:
+                        seq = get_cds_seq(cds_db[gene_id])
+                        cds_stat, val = check_cds(seq)
+                    else:
+                        continue
+
+                if cds_stat == CDS_Status.VALID_CDS:
+                    retain_genes.add(gene_id)
+                    new_cds_db[gene_id] = seq
+                    continue
+
+                if cds_stat == CDS_Status.EARLY_STOP:
+                    cur_cds_len = 0
+                    is_mod = False
+                    cds_dir = cds_db[gene_id][0][2]
+                    if cds_dir == '+':
+                        for cds_idx in range(len(cds_db[gene_id])):
+                            cur_cds_len += cds_db[gene_id][cds_idx][1] - cds_db[gene_id][cds_idx][0] + 1
+                            if cur_cds_len >= val:
+                                last_cds_len = cur_cds_len - (
+                                        cds_db[gene_id][cds_idx][1] - cds_db[gene_id][cds_idx][0] + 1)
+                                cds_db[gene_id][cds_idx][1] -= (cur_cds_len - val)
+                                new_seq = cds_db[gene_id][cds_idx][3][:val - last_cds_len]
+                                cds_db[gene_id][cds_idx][3] = new_seq
+                                tmp_gff3_db[gid][cds_db[gene_id][cds_idx][4]][1] = cds_db[gene_id][cds_idx][1]
+
+                                for drop_idx in range(cds_idx + 1, len(cds_db[gene_id])):
+                                    tmp_gff3_db[gid][cds_db[gene_id][drop_idx][4]] = []
+                                cds_db[gene_id] = cds_db[gene_id][:cds_idx + 1]
+                                is_mod = True
+                                break
+                    else:
+                        for cds_idx in range(len(cds_db[gene_id]) - 1, -1, -1):
+                            cur_cds_len += cds_db[gene_id][cds_idx][1] - cds_db[gene_id][cds_idx][0] + 1
+                            if cur_cds_len >= val:
+                                last_cds_len = cur_cds_len - (
+                                        cds_db[gene_id][cds_idx][1] - cds_db[gene_id][cds_idx][0] + 1)
+                                cds_db[gene_id][cds_idx][0] += (cur_cds_len - val)
+                                new_seq = cds_db[gene_id][cds_idx][3][:val - last_cds_len]
+                                cds_db[gene_id][cds_idx][3] = new_seq
+                                tmp_gff3_db[gid][cds_db[gene_id][cds_idx][4]][0] = cds_db[gene_id][cds_idx][0]
+
+                                for drop_idx in range(0, cds_idx - 1):
+                                    tmp_gff3_db[gid][cds_db[gene_id][drop_idx][4]] = []
+                                cds_db[gene_id] = cds_db[gene_id][cds_idx:]
+                                is_mod = True
+                                break
+
+                    if is_mod:
+                        seq = get_cds_seq(cds_db[gene_id])
+                        cds_stat, val = check_cds(seq)
+                        if cds_stat == CDS_Status.VALID_CDS:
+                            retain_genes.add(gene_id)
+                            new_cds_db[gene_id] = seq
 
         time_print("\tTotal: %d, Valid: %d" % (gene_cnt, len(retain_genes)))
 
         for gid in tmp_gff3_db:
             new_gff3_db[gid] = []
-            for gene_id, sp, ep, record_type, data in tmp_gff3_db[gid]:
+            for rec_idx in range(len(tmp_gff3_db[gid])):
+                if not tmp_gff3_db[gid][rec_idx]:
+                    continue
+                gene_id, sp, ep, record_type, data = tmp_gff3_db[gid][rec_idx]
                 if gene_id not in retain_genes:
                     continue
                 data[3] = str(sp)
