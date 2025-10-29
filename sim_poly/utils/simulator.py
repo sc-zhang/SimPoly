@@ -72,7 +72,7 @@ def simulate(
         time_print("\tSimulating deletion length: %d" % total_del_len)
         cur_del_len = 0
         while cur_del_len < total_del_len:
-            del_len = np.random.normal(mean_del_len, 0.5 * mean_del_len)
+            del_len = int(np.random.normal(mean_del_len, 0.5 * mean_del_len))
             pos = np.random.randint(seq_len)
             if pos_list[pos] == 1:
                 pos_list[pos] = 0
@@ -93,7 +93,7 @@ def simulate(
         time_print("\tSimulating insertion length: %d" % total_ins_len)
         cur_ins_len = 0
         while cur_ins_len < total_ins_len:
-            ins_len = np.random.normal(mean_ins_len, 0.5 * mean_ins_len)
+            ins_len = int(np.random.normal(mean_ins_len, 0.5 * mean_ins_len))
             pos = np.random.randint(seq_len)
             if pos_list[pos] == 1:
                 pos_list[pos] = 0
