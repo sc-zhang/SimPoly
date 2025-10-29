@@ -29,15 +29,15 @@ def get_offset(ins_db, del_db, gid, ins_idx, del_idx, ins_offset, del_offset, po
 
 
 def simulate(
-        out_dir,
-        hap_idx,
-        ref_fa_db,
-        ref_gff3_db,
-        snp_ratio,
-        ins_ratio,
-        del_ratio,
-        mean_ins_len,
-        mean_del_len,
+    out_dir,
+    hap_idx,
+    ref_fa_db,
+    ref_gff3_db,
+    snp_ratio,
+    ins_ratio,
+    del_ratio,
+    mean_ins_len,
+    mean_del_len,
 ):
     np.random.seed()
     new_fa_db = {}
@@ -148,7 +148,7 @@ def simulate(
                     cds_db[gene_id] = []
                     gene_cnt += 1
                 if record_type == "CDS":
-                    seq = new_fa_db[gid][sp - 1: ep]
+                    seq = new_fa_db[gid][sp - 1 : ep]
                     if data[6] == "-":
                         seq = rev_seq(seq)
                     cds_db[gene_id].append([sp, ep, data[6], seq, rec_idx])
@@ -163,9 +163,9 @@ def simulate(
                     continue
                 cds_stat, val = check_cds(seq)
                 if (
-                        cds_stat == CDS_Status.MISSING_START
-                        or cds_stat == CDS_Status.MISSING_STOP
-                        or cds_stat == CDS_Status.NOT_MULTIPLE_3
+                    cds_stat == CDS_Status.MISSING_START
+                    or cds_stat == CDS_Status.MISSING_STOP
+                    or cds_stat == CDS_Status.NOT_MULTIPLE_3
                 ):
                     continue
                 if cds_stat == CDS_Status.VALID_CDS:
@@ -180,15 +180,15 @@ def simulate(
                     if cds_dir == "+":
                         for cds_idx in range(len(cds_db[gene_id])):
                             cur_cds_len += (
-                                    cds_db[gene_id][cds_idx][1]
-                                    - cds_db[gene_id][cds_idx][0]
-                                    + 1
+                                cds_db[gene_id][cds_idx][1]
+                                - cds_db[gene_id][cds_idx][0]
+                                + 1
                             )
                             if cur_cds_len >= val:
                                 last_cds_len = cur_cds_len - (
-                                        cds_db[gene_id][cds_idx][1]
-                                        - cds_db[gene_id][cds_idx][0]
-                                        + 1
+                                    cds_db[gene_id][cds_idx][1]
+                                    - cds_db[gene_id][cds_idx][0]
+                                    + 1
                                 )
                                 cds_db[gene_id][cds_idx][1] -= cur_cds_len - val
                                 new_seq = cds_db[gene_id][cds_idx][3][
@@ -200,7 +200,7 @@ def simulate(
                                 )
 
                                 for drop_idx in range(
-                                        cds_idx + 1, len(cds_db[gene_id])
+                                    cds_idx + 1, len(cds_db[gene_id])
                                 ):
                                     tmp_gff3_db[gid][cds_db[gene_id][drop_idx][4]] = []
                                 cds_db[gene_id] = cds_db[gene_id][: cds_idx + 1]
@@ -209,15 +209,15 @@ def simulate(
                     else:
                         for cds_idx in range(len(cds_db[gene_id]) - 1, -1, -1):
                             cur_cds_len += (
-                                    cds_db[gene_id][cds_idx][1]
-                                    - cds_db[gene_id][cds_idx][0]
-                                    + 1
+                                cds_db[gene_id][cds_idx][1]
+                                - cds_db[gene_id][cds_idx][0]
+                                + 1
                             )
                             if cur_cds_len >= val:
                                 last_cds_len = cur_cds_len - (
-                                        cds_db[gene_id][cds_idx][1]
-                                        - cds_db[gene_id][cds_idx][0]
-                                        + 1
+                                    cds_db[gene_id][cds_idx][1]
+                                    - cds_db[gene_id][cds_idx][0]
+                                    + 1
                                 )
                                 cds_db[gene_id][cds_idx][0] += cur_cds_len - val
                                 new_seq = cds_db[gene_id][cds_idx][3][
@@ -275,7 +275,7 @@ def simulate(
             for pos, del_len in del_db[gid]:
                 fout.write(
                     "%s\t%d\t%d\t%s\n"
-                    % (gid, pos, del_len, ref_fa_db[gid][pos: pos + del_len])
+                    % (gid, pos, del_len, ref_fa_db[gid][pos : pos + del_len])
                 )
 
     return new_fa_db, new_gff3_db, new_cds_db
