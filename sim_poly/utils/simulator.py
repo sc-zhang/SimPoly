@@ -12,6 +12,22 @@ def get_cds_seq(cds_list):
     return seq
 
 
+def get_offset(ins_db, del_db, gid, ins_idx, del_idx, ins_offset, del_offset, pos):
+    while ins_idx < len(ins_db[gid]) and pos >= ins_db[gid][ins_idx][0] + 1:
+        ins_offset += ins_db[gid][ins_idx][1]
+        ins_idx += 1
+        if ins_idx >= len(ins_db[gid]):
+            break
+
+    while del_idx < len(del_db[gid]) and pos >= del_db[gid][del_idx][0] + 1:
+        del_offset += del_db[gid][del_idx][1]
+        del_idx += 1
+        if del_idx >= len(del_db[gid]):
+            break
+
+    return ins_idx, ins_offset, del_idx, del_offset
+
+
 def simulate(
         out_dir,
         hap_idx,
@@ -20,8 +36,8 @@ def simulate(
         snp_ratio,
         ins_ratio,
         del_ratio,
-        max_ins_len,
-        max_del_len,
+        mean_ins_len,
+        mean_del_len,
 ):
     np.random.seed()
     new_fa_db = {}
@@ -56,7 +72,7 @@ def simulate(
         time_print("\tSimulating deletion length: %d" % total_del_len)
         cur_del_len = 0
         while cur_del_len < total_del_len:
-            del_len = np.random.randint(1, max_del_len + 1)
+            del_len = np.random.normal(mean_del_len, 0.5 * mean_del_len)
             pos = np.random.randint(seq_len)
             if pos_list[pos] == 1:
                 pos_list[pos] = 0
@@ -77,7 +93,7 @@ def simulate(
         time_print("\tSimulating insertion length: %d" % total_ins_len)
         cur_ins_len = 0
         while cur_ins_len < total_ins_len:
-            ins_len = np.random.randint(1, max_ins_len + 1)
+            ins_len = np.random.normal(mean_ins_len, 0.5 * mean_ins_len)
             pos = np.random.randint(seq_len)
             if pos_list[pos] == 1:
                 pos_list[pos] = 0
@@ -106,30 +122,17 @@ def simulate(
             for sp, ep, record_type, gene_id, data in ref_gff3_db[gid]:
                 if record_type.lower() not in keep_rec:
                     continue
-                while ins_idx < len(ins_db[gid]) and sp >= ins_db[gid][ins_idx][0] + 1:
-                    ins_offset += ins_db[gid][ins_idx][1]
-                    ins_idx += 1
-                    if ins_idx >= len(ins_db[gid]):
-                        break
 
-                while del_idx < len(del_db[gid]) and sp >= del_db[gid][del_idx][0] + 1:
-                    del_offset += del_db[gid][del_idx][1]
-                    del_idx += 1
-                    if del_idx >= len(del_db[gid]):
-                        break
+                ins_idx, ins_offset, del_idx, del_offset = get_offset(
+                    ins_db, del_db, gid, ins_idx, del_idx, ins_offset, del_offset, sp
+                )
                 sp = sp + ins_offset - del_offset
 
-                while ins_idx < len(ins_db[gid]) and ep >= ins_db[gid][ins_idx][0] + 1:
-                    ins_offset += ins_db[gid][ins_idx][1]
-                    ins_idx += 1
-                    if ins_idx >= len(ins_db[gid]):
-                        break
-                while del_idx < len(del_db[gid]) and ep >= del_db[gid][del_idx][0] + 1:
-                    del_offset += del_db[gid][del_idx][1]
-                    del_idx += 1
-                    if del_idx >= len(del_db[gid]):
-                        break
+                ins_idx, ins_offset, del_idx, del_offset = get_offset(
+                    ins_db, del_db, gid, ins_idx, del_idx, ins_offset, del_offset, ep
+                )
                 ep = ep + ins_offset - del_offset
+
                 tmp_gff3_db[gid].append(
                     [gene_id, sp, ep, record_type, copy.deepcopy(data)]
                 )
